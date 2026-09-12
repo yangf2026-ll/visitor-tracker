@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>欢迎访问</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #333;
+    }
+    .container {
+      background: #fff;
+      border-radius: 16px;
+      padding: 60px 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+      text-align: center;
+      max-width: 500px;
+      width: 90%;
+    }
+    h1 {
+      font-size: 32px;
+      margin-bottom: 16px;
+      color: #333;
+    }
+    p {
+      font-size: 16px;
+      line-height: 1.8;
+      color: #666;
+      margin-bottom: 12px;
+    }
+    .icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+    }
+    .footer {
+      margin-top: 30px;
+      font-size: 14px;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">👋</div>
+    <h1>欢迎来到我的网站</h1>
+    <p>这是一个测试页面，内容可以随便写。</p>
+    <p>你可以在这里放任何想展示的内容。</p>
+    <div class="footer">© 2024 My Website</div>
+  </div>
+
+  <script>
+    // 页面加载时上报访问记录
+    fetch('/api/visit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        page: window.location.pathname,
+        timestamp: new Date().toISOString()
+      })
+    }).catch(err => console.error('上报失败:', err));
+  </script>
+</body>
+</html>
