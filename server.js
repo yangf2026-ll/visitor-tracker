@@ -52,9 +52,24 @@ app.post('/api/visit', async (req, res) => {
     const referer = req.headers['referer'] || req.headers['referrer'] || '';
     const page = req.body.page || req.path;
     const language = req.headers['accept-language'] || '';
+    // GPS 定位信息
+    const latitude = req.body.latitude || null;
+    const longitude = req.body.longitude || null;
+    const accuracy = req.body.accuracy || null;
 
     const { error } = await supabase.from('visits').insert([
-      { id, time, ip, user_agent: userAgent, referer, page, language }
+      {
+        id,
+        time,
+        ip,
+        user_agent: userAgent,
+        referer,
+        page,
+        language,
+        latitude,
+        longitude,
+        accuracy
+      }
     ]);
 
     if (error) throw error;
@@ -77,19 +92,19 @@ app.get('/api/visits', async (req, res) => {
     const { count, error: countError } = await supabase
       .from('visits')
       .select('*', { count: 'exact', head: true });
-    
+
     if (countError) throw countError;
 
     // 获取最新500条
     const { data, error } = await supabase
       .from('visits')
-      .select('id, time, ip, user_agent, referer, page, language')
+      .select('id, time, ip, user_agent, referer, page, language, latitude, longitude, accuracy')
       .order('time', { ascending: false })
       .limit(500);
 
     if (error) throw error;
 
-    // 字段名转换（user_agent -> userAgent）
+    // 字段名转换
     const visits = data.map(item => ({
       id: item.id,
       time: item.time,
@@ -97,7 +112,10 @@ app.get('/api/visits', async (req, res) => {
       userAgent: item.user_agent,
       referer: item.referer,
       page: item.page,
-      language: item.language
+      language: item.language,
+      latitude: item.latitude,
+      longitude: item.longitude,
+      accuracy: item.accuracy
     }));
 
     res.json({
@@ -128,7 +146,7 @@ app.delete('/api/visits', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`访客记录系统已启动`);
+  console.log(`访客记录系统已启动（含GPS定位）`);
   console.log(`前台地址: http://localhost:${PORT}`);
   console.log(`后台地址: http://localhost:${PORT}/admin.html`);
   console.log(`后台密码: ${ADMIN_PASSWORD}`);
