@@ -1,9 +1,5 @@
-// 强制使用 IPv4 解析，解决 Render 免费版不支持 IPv6 的问题
-const dns = require('dns');
-dns.setDefaultResultOrder('ipv4first');
-
 const express = require('express');
-const { Pool } = require('pg');
+const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
 
 const app = express();
@@ -12,26 +8,27 @@ const PORT = process.env.PORT || 3000;
 // 后台密码
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
-// 数据库连接字符串（从环境变量读取）
-const DATABASE_URL = process.env.DATABASE_URL;
+// Supabase 配置（从环境变量读取）
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
-// 创建数据库连接池
-const pool = new Pool({
-  connectionString: DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  },
-  connectionTimeoutMillis: 15000,
-});
+// 创建 Supabase 客户端
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// 测试数据库连接
-pool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    console.error('数据库连接失败:', err.message);
-  } else {
-    console.log('数据库连接成功');
+// 测试连接
+async function testConnection() {
+  try {
+    const { data, error } = await supabase.from('visits').select('id').limit(1);
+    if (error) {
+      console.error('Supabase 连接失败:', error.message);
+    } else {
+      console.log('Supabase 连接成功');
+    }
+  } catch (err) {
+    console.error('Supabase 连接异常:', err.message);
   }
-});
+}
+testConnection();
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -45,7 +42,7 @@ function getClientIp(req) {
   return req.ip || req.connection.remoteAddress || '';
 }
 
-// 记录访问（写入数据库）
+// 记录访问（写入 Supabase）
 app.post('/api/visit', async (req, res) => {
   try {
     const id = Date.now() + '-' + Math.random().toString(36).substr(2, 6);
@@ -56,11 +53,11 @@ app.post('/api/visit', async (req, res) => {
     const page = req.body.page || req.path;
     const language = req.headers['accept-language'] || '';
 
-    await pool.query(
-      'INSERT INTO visits (id, time, ip, user_agent, referer, page, language) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-      [id, time, ip, userAgent, referer, page, language]
-    );
+    const { error } = await supabase.from('visits').insert([
+      { id, time, ip, user_agent: userAgent, referer, page, language }
+    ]);
 
+    if (error) throw error;
     res.json({ success: true });
   } catch (err) {
     console.error('记录访问失败:', err);
@@ -68,7 +65,7 @@ app.post('/api/visit', async (req, res) => {
   }
 });
 
-// 获取访问记录（从数据库读取）
+// 获取访问记录（从 Supabase 读取）
 app.get('/api/visits', async (req, res) => {
   const password = req.query.password || req.headers['x-admin-password'];
   if (password !== ADMIN_PASSWORD) {
@@ -77,17 +74,35 @@ app.get('/api/visits', async (req, res) => {
 
   try {
     // 获取总数
-    const countResult = await pool.query('SELECT COUNT(*) FROM visits');
-    const total = parseInt(countResult.rows[0].count);
+    const { count, error: countError } = await supabase
+      .from('visits')
+      .select('*', { count: 'exact', head: true });
+    
+    if (countError) throw countError;
 
     // 获取最新500条
-    const result = await pool.query(
-      'SELECT id, time, ip, user_agent as "userAgent", referer, page, language FROM visits ORDER BY time DESC LIMIT 500'
-    );
+    const { data, error } = await supabase
+      .from('visits')
+      .select('id, time, ip, user_agent, referer, page, language')
+      .order('time', { ascending: false })
+      .limit(500);
+
+    if (error) throw error;
+
+    // 字段名转换（user_agent -> userAgent）
+    const visits = data.map(item => ({
+      id: item.id,
+      time: item.time,
+      ip: item.ip,
+      userAgent: item.user_agent,
+      referer: item.referer,
+      page: item.page,
+      language: item.language
+    }));
 
     res.json({
-      total: total,
-      visits: result.rows
+      total: count || 0,
+      visits: visits
     });
   } catch (err) {
     console.error('查询记录失败:', err);
@@ -103,7 +118,8 @@ app.delete('/api/visits', async (req, res) => {
   }
 
   try {
-    await pool.query('DELETE FROM visits');
+    const { error } = await supabase.from('visits').delete().neq('id', '');
+    if (error) throw error;
     res.json({ success: true });
   } catch (err) {
     console.error('清空记录失败:', err);
