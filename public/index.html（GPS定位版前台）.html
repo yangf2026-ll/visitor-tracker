@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>欢迎访问</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #333;
+    }
+    .container {
+      background: #fff;
+      border-radius: 16px;
+      padding: 60px 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+      text-align: center;
+      max-width: 500px;
+      width: 90%;
+    }
+    h1 {
+      font-size: 32px;
+      margin-bottom: 16px;
+      color: #333;
+    }
+    p {
+      font-size: 16px;
+      line-height: 1.8;
+      color: #666;
+      margin-bottom: 12px;
+    }
+    .icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+    }
+    .footer {
+      margin-top: 30px;
+      font-size: 14px;
+      color: #999;
+    }
+    .status {
+      margin-top: 20px;
+      font-size: 13px;
+      color: #999;
+      min-height: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">👋</div>
+    <h1>欢迎来到我的网站</h1>
+    <p>这是一个测试页面，内容可以随便写。</p>
+    <p>你可以在这里放任何想展示的内容。</p>
+    <div class="status" id="status"></div>
+    <div class="footer">© 2024 My Website</div>
+  </div>
+
+  <script>
+    // 上报访问记录
+    function reportVisit(data) {
+      return fetch('/api/visit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      }).catch(err => console.error('上报失败:', err));
+    }
+
+    // 获取 GPS 位置并上报
+    function getLocationAndReport() {
+      const statusEl = document.getElementById('status');
+      const visitData = {
+        page: window.location.pathname,
+        timestamp: new Date().toISOString()
+      };
+
+      // 检查浏览器是否支持定位
+      if (!navigator.geolocation) {
+        statusEl.textContent = '您的浏览器不支持定位功能';
+        reportVisit(visitData);
+        return;
+      }
+
+      statusEl.textContent = '正在获取位置...';
+
+      // 请求定位
+      navigator.geolocation.getCurrentPosition(
+        // 成功回调
+        function(position) {
+          visitData.latitude = position.coords.latitude;
+          visitData.longitude = position.coords.longitude;
+          visitData.accuracy = position.coords.accuracy; // 精度（米）
+          statusEl.textContent = '位置已获取';
+          reportVisit(visitData);
+        },
+        // 失败回调
+        function(error) {
+          let msg = '';
+          switch(error.code) {
+            case error.PERMISSION_DENIED:
+              msg = '您拒绝了定位请求';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              msg = '位置信息不可用';
+              break;
+            case error.TIMEOUT:
+              msg = '定位超时';
+              break;
+            default:
+              msg = '定位失败';
+          }
+          statusEl.textContent = msg;
+          // 即使定位失败，也上报基本访问信息
+          reportVisit(visitData);
+        },
+        // 定位选项
+        {
+          enableHighAccuracy: true,  // 高精度模式
+          timeout: 15000,             // 15秒超时
+          maximumAge: 0               // 不使用缓存位置
+        }
+      );
+    }
+
+    // 页面加载完成后获取位置并上报
+    window.addEventListener('load', function() {
+      // 稍微延迟一下，确保页面渲染完成
+      setTimeout(getLocationAndReport, 500);
+    });
+  </script>
+</body>
+</html>
+<!-- （注：内容由AI生成） -->
