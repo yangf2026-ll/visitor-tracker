@@ -1,3 +1,7 @@
+// 强制使用 IPv4 解析，解决 Render 免费版不支持 IPv6 的问题
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+
 const express = require('express');
 const { Pool } = require('pg');
 const path = require('path');
@@ -16,7 +20,8 @@ const pool = new Pool({
   connectionString: DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
-  }
+  },
+  connectionTimeoutMillis: 15000,
 });
 
 // 测试数据库连接
