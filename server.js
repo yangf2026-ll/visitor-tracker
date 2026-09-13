@@ -1,46 +1,37 @@
 const express = require('express');
-const fs = require('fs');
+const { Pool } = require('pg');
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 后台密码，部署时请修改
+// 后台密码
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
-// 数据文件路径
-const DATA_FILE = path.join(__dirname, 'data', 'visits.json');
+// 数据库连接字符串（从环境变量读取）
+const DATABASE_URL = process.env.DATABASE_URL;
 
-// 确保数据目录存在
-const dataDir = path.join(__dirname, 'data');
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
+// 创建数据库连接池
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
 
-// 确保数据文件存在
-if (!fs.existsSync(DATA_FILE)) {
-  fs.writeFileSync(DATA_FILE, '[]', 'utf8');
-}
+// 测试数据库连接
+pool.query('SELECT NOW()', (err, res) => {
+  if (err) {
+    console.error('数据库连接失败:', err.message);
+  } else {
+    console.log('数据库连接成功');
+  }
+});
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 读取访问记录
-function readVisits() {
-  try {
-    const data = fs.readFileSync(DATA_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (e) {
-    return [];
-  }
-}
-
-// 写入访问记录
-function writeVisits(visits) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(visits, null, 2), 'utf8');
-}
-
-// 获取客户端真实 IP（兼容代理）
+// 获取客户端真实 IP
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
   if (forwarded) {
@@ -49,48 +40,70 @@ function getClientIp(req) {
   return req.ip || req.connection.remoteAddress || '';
 }
 
-// 记录访问
-app.post('/api/visit', (req, res) => {
-  const visits = readVisits();
-  const visit = {
-    id: Date.now() + '-' + Math.random().toString(36).substr(2, 6),
-    time: new Date().toISOString(),
-    ip: getClientIp(req),
-    userAgent: req.headers['user-agent'] || '',
-    referer: req.headers['referer'] || req.headers['referrer'] || '',
-    page: req.body.page || req.path,
-    language: req.headers['accept-language'] || ''
-  };
-  visits.unshift(visit); // 最新的放前面
-  // 最多保留 10000 条记录
-  if (visits.length > 10000) {
-    visits.length = 10000;
+// 记录访问（写入数据库）
+app.post('/api/visit', async (req, res) => {
+  try {
+    const id = Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+    const time = new Date().toISOString();
+    const ip = getClientIp(req);
+    const userAgent = req.headers['user-agent'] || '';
+    const referer = req.headers['referer'] || req.headers['referrer'] || '';
+    const page = req.body.page || req.path;
+    const language = req.headers['accept-language'] || '';
+
+    await pool.query(
+      'INSERT INTO visits (id, time, ip, user_agent, referer, page, language) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      [id, time, ip, userAgent, referer, page, language]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('记录访问失败:', err);
+    res.status(500).json({ error: '记录失败' });
   }
-  writeVisits(visits);
-  res.json({ success: true });
 });
 
-// 获取访问记录（需要密码）
-app.get('/api/visits', (req, res) => {
+// 获取访问记录（从数据库读取）
+app.get('/api/visits', async (req, res) => {
   const password = req.query.password || req.headers['x-admin-password'];
   if (password !== ADMIN_PASSWORD) {
     return res.status(401).json({ error: '密码错误' });
   }
-  const visits = readVisits();
-  res.json({
-    total: visits.length,
-    visits: visits.slice(0, 500) // 最多返回500条
-  });
+
+  try {
+    // 获取总数
+    const countResult = await pool.query('SELECT COUNT(*) FROM visits');
+    const total = parseInt(countResult.rows[0].count);
+
+    // 获取最新500条
+    const result = await pool.query(
+      'SELECT id, time, ip, user_agent as "userAgent", referer, page, language FROM visits ORDER BY time DESC LIMIT 500'
+    );
+
+    res.json({
+      total: total,
+      visits: result.rows
+    });
+  } catch (err) {
+    console.error('查询记录失败:', err);
+    res.status(500).json({ error: '查询失败' });
+  }
 });
 
-// 清空记录（需要密码）
-app.delete('/api/visits', (req, res) => {
+// 清空记录
+app.delete('/api/visits', async (req, res) => {
   const password = req.query.password || req.headers['x-admin-password'];
   if (password !== ADMIN_PASSWORD) {
     return res.status(401).json({ error: '密码错误' });
   }
-  writeVisits([]);
-  res.json({ success: true });
+
+  try {
+    await pool.query('DELETE FROM visits');
+    res.json({ success: true });
+  } catch (err) {
+    console.error('清空记录失败:', err);
+    res.status(500).json({ error: '清空失败' });
+  }
 });
 
 app.listen(PORT, () => {
@@ -99,4 +112,3 @@ app.listen(PORT, () => {
   console.log(`后台地址: http://localhost:${PORT}/admin.html`);
   console.log(`后台密码: ${ADMIN_PASSWORD}`);
 });
-//（注：内容由AI生成）
