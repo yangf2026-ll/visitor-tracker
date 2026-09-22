@@ -147,6 +147,7 @@ app.delete('/api/visits', async (req, res) => {
 });
 // AI 地理速写接口
 app.post('/api/geo-intro', handleGeoIntro);
+app.get('/api/geo-diag', handleGeoDiag);
 app.listen(PORT, () => {
   console.log(`访客记录系统已启动（含GPS定位）`);
   console.log(`前台地址: http://localhost:${PORT}`);
