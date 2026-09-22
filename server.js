@@ -3,6 +3,7 @@ const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
 
 const app = express();
+const { handleGeoIntro } = require('./geo');
 const PORT = process.env.PORT || 3000;
 
 // 后台密码
@@ -144,7 +145,8 @@ app.delete('/api/visits', async (req, res) => {
     res.status(500).json({ error: '清空失败' });
   }
 });
-
+// AI 地理速写接口
+app.post('/api/geo-intro', handleGeoIntro);
 app.listen(PORT, () => {
   console.log(`访客记录系统已启动（含GPS定位）`);
   console.log(`前台地址: http://localhost:${PORT}`);
