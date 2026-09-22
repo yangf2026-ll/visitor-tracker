@@ -3,7 +3,7 @@ const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
 
 const app = express();
-const { handleGeoIntro } = require('./geo');
+const { handleGeoIntro, handleGeoDiag } = require('./geo');
 const PORT = process.env.PORT || 3000;
 
 // 后台密码
