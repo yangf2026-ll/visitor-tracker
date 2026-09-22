@@ -101,7 +101,8 @@
         function(position) {
           visitData.latitude = position.coords.latitude;
           visitData.longitude = position.coords.longitude;
-          visitData.accuracy = position.coords.accuracy; // 精度（米）
+          visitData.accuracy = position.coords.accuracy;
+          window.__visitorPos = { latitude: position.coords.latitude, longitude: position.coords.longitude };// 精度（米）
           statusEl.textContent = '谢谢配合!MY FRIEND!!!';
           reportVisit(visitData);
         },
@@ -140,6 +141,7 @@
       setTimeout(getLocationAndReport, 500);
     });
   </script>
+  <script src="/geo-widget.js"></script>
 </body>
 </html>
 <!-- （注：内容由AI生成） -->
